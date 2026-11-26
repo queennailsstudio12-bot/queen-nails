@@ -57,7 +57,6 @@
       const t = 'La agenda en línea se está configurando. Muy pronto podrás reservar aquí.';
       app.innerHTML = `<div class="notice">${t}</div>`;
       if (TOKEN) { $('#mi-cita').hidden = false; $('#mi-cita').innerHTML = `<div class="manage-card"><p class="msg">${t}</p></div>`; }
-      $('#service-grid').innerHTML = '';
       return;
     }
     try {
@@ -99,6 +98,7 @@
 
   function renderServicesGrid() {
     const grid = $('#service-grid');
+    if (!grid) return;
     if (!S.svcs.length) { grid.innerHTML = '<p class="muted">Pronto publicaremos nuestros servicios.</p>'; return; }
     grid.innerHTML = S.svcs.map(s => `<article class="service-card">
       <span class="symbol" aria-hidden="true">✧</span>
