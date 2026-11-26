@@ -10,7 +10,7 @@
     cfg: null, svcs: [], pros: [], rel: [],
     sel: [], pro: '', date: '', time: '', days: [], slots: null,
     loadingDays: false, loadingSlots: false, group: false, people: [],
-    msg: '', busy: false, t0: Date.now()
+    msg: '', busy: false, step: 1, t0: Date.now()
   };
   let reqDays = 0, reqSlots = 0;
 
@@ -122,28 +122,74 @@
   function buildApp() {
     if (!bookable().length) { app.innerHTML = '<p class="muted">Aún no hay servicios disponibles para reservar en línea.</p>'; return; }
     app.innerHTML = `
-      <section class="step" id="st-svc"></section>
-      <section class="step" id="st-pro" hidden></section>
-      <section class="step" id="st-date"></section>
-      <section class="step">
-        <h4><i>${S.pros.length > 1 ? 4 : 3}</i>Tus datos</h4>
-        <div class="form-row">
-          <div><label for="f-name">Nombre</label><input id="f-name" autocomplete="name" maxlength="80" placeholder="Tu nombre"></div>
-          <div><label for="f-phone">Celular</label><input id="f-phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="300 000 0000"></div>
-        </div>
-        <label for="f-nota">¿Algo que debamos saber? <span class="opt">(opcional)</span></label>
-        <textarea id="f-nota" maxlength="300" rows="2" placeholder="Ej.: traigo diseño de referencia, retiro de acrílico…"></textarea>
-        <input class="hp" id="f-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <p class="form-hint">Usaremos tu número únicamente para contactarte sobre tu cita.</p>
+      <ol class="progress" id="progress" aria-label="Pasos de la reserva"></ol>
+      <section class="pane" data-pane="1">
+        <div class="step" id="st-svc"></div>
+        <div class="step" id="st-pro" hidden></div>
       </section>
-      <div id="summary"></div>
+      <section class="pane" data-pane="2" hidden>
+        <div class="step" id="st-date"></div>
+      </section>
+      <section class="pane" data-pane="3" hidden>
+        <div id="summary"></div>
+        <div class="step">
+          <h4>Tus datos</h4>
+          <div class="form-row">
+            <div><label for="f-name">Nombre y apellido</label><input id="f-name" autocomplete="name" maxlength="80" placeholder="Ej.: Laura Gómez"></div>
+            <div><label for="f-phone">Celular (WhatsApp)</label><input id="f-phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="300 000 0000"></div>
+          </div>
+          <label for="f-nota">¿Algo que debamos saber? <span class="opt">(opcional)</span></label>
+          <textarea id="f-nota" maxlength="300" rows="2" placeholder="Ej.: traigo diseño de referencia, retiro de acrílico…"></textarea>
+          <input class="hp" id="f-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <p class="form-hint">🔒 Usaremos tu número únicamente para contactarte sobre tu cita.</p>
+        </div>
+      </section>
       <p class="msg" id="msg" role="alert"></p>
-      <button class="button primary submit" id="book" type="button">Confirmar reserva</button>`;
-    renderSvc(); renderPro(); renderDate(); renderSummary();
-    $('#book').addEventListener('click', book);
+      <div class="actionbar" id="actionbar">
+        <div class="ab-sum" id="ab-sum"></div>
+        <div class="ab-btns"><button type="button" class="btn-back" id="back" hidden>‹ Atrás</button><button type="button" class="button primary" id="next">Continuar</button></div>
+      </div>`;
+    renderSvc(); renderPro(); renderDate(); renderSummary(); goStep(1, true);
+    $('#next').addEventListener('click', () => S.step === 3 ? book() : goStep(S.step + 1));
+    $('#back').addEventListener('click', () => goStep(S.step - 1));
+    $('#progress').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) goStep(+b.dataset.go); });
     app.addEventListener('click', onClick);
     app.addEventListener('change', onChange);
     app.addEventListener('input', e => { if (e.target.dataset.pn !== undefined) S.people[+e.target.dataset.pn].nombre = e.target.value; });
+  }
+
+  // ---------- Asistente por pasos ----------
+  const STEPS = ['Servicio', 'Fecha y hora', 'Tus datos'];
+  const step1Ok = () => ids().length > 0 && !(S.group && S.people.some(p => !p.svc));
+  const step2Ok = () => step1Ok() && !!S.date && !!S.time;
+
+  function goStep(n, silent) {
+    if (n < 1 || n > 3) return;
+    if (n >= 2 && !step1Ok()) { n = 1; if (!silent) setMsg(S.group ? 'Elige el servicio de cada persona.' : 'Elige al menos un servicio.'); }
+    else if (n === 3 && !step2Ok()) { n = 2; if (!silent) setMsg('Elige el día y la hora de tu cita.'); }
+    else setMsg('');
+    S.step = n;
+    document.querySelectorAll('.pane').forEach(p => { p.hidden = +p.dataset.pane !== n; });
+    $('#progress').innerHTML = STEPS.map((label, i) => {
+      const k = i + 1, st = k < n ? 'done' : k === n ? 'on' : '';
+      return `<li class="${st}">${k < n ? `<button type="button" data-go="${k}">` : '<span>'}<i>${k < n ? '✓' : k}</i><em>${label}</em>${k < n ? '</button>' : '</span>'}</li>`;
+    }).join('');
+    renderBar();
+    if (!silent) { $('#booking-card').scrollIntoView({ behavior: 'smooth', block: 'start' }); if (n === 3) setTimeout(() => $('#f-name')?.focus({ preventScroll: true }), 350); }
+  }
+
+  function renderBar() {
+    const sum = $('#ab-sum'), next = $('#next'), back = $('#back');
+    if (!sum) return;
+    const n = S.step || 1, count = ids().length;
+    let line = '';
+    if (count) {
+      line = `<b>${S.group ? S.people.length + ' personas' : count === 1 ? esc(svc(ids()[0])?.nombre) : count + ' servicios'}</b><small>${dur(totalDur())}${allPriced() ? ' · ' + money(totalPrice()) : ''}${S.time && n >= 2 ? ' · ' + esc(fmt(S.date, { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')) + ' ' + h12(S.time) : ''}</small>`;
+    } else line = '<small>Elige uno o varios servicios</small>';
+    sum.innerHTML = line;
+    back.hidden = n === 1;
+    next.textContent = n === 1 ? 'Elegir fecha y hora' : n === 2 ? 'Continuar' : 'Confirmar reserva';
+    next.disabled = (n === 1 && !step1Ok()) || (n === 2 && !step2Ok());
   }
 
   function renderSvc() {
@@ -152,18 +198,20 @@
     const val = S.svcs.filter(s => s.requiere_valoracion);
     const valNote = val.length && waNum() ? `<div class="info">✨ <b>${esc(val.map(s => s.nombre).join(', '))}:</b> requiere${val.length > 1 ? 'n' : ''} una valoración antes de agendar. <a target="_blank" rel="noopener" href="${wa(waNum(), 'Hola, quiero una valoración para ' + val.map(s => s.nombre).join(', '))}">Escríbenos por WhatsApp</a>.</div>` : '';
     if (!S.group) {
-      el.innerHTML = `<h4><i>1</i>Elige tus servicios</h4>
+      el.innerHTML = `<h4>¿Qué te quieres hacer?</h4>
         <p class="hint">Puedes elegir hasta ${MAX_SVCS} servicios para la misma cita.</p>
         <div class="svc-pick">${bookable().map(s => {
           const on = S.sel.includes(s.id);
           return `<button type="button" class="svc-opt${on ? ' on' : ''}" data-svc="${s.id}" aria-pressed="${on}">
-            <span class="tick" aria-hidden="true">${on ? '✓' : '+'}</span><span><b>${esc(s.nombre)}</b><small>${svcLine(s)}</small></span></button>`;
+            <span class="svc-txt"><b>${esc(s.nombre)}</b>${s.descripcion ? `<small class="svc-desc">${esc(s.descripcion)}</small>` : ''}
+            <span class="svc-meta"><span class="chip-dur">🕑 ${dur(s.dur_min)}</span>${s.precio > 0 ? `<span class="svc-price">${money(s.precio)}</span>` : ''}</span></span>
+            <span class="tick" aria-hidden="true">${on ? '✓' : '+'}</span></button>`;
         }).join('')}</div>
         ${valNote}
         <button type="button" class="alt" data-group="on">👭 Vengo con más personas</button>`;
     } else {
       const opts = sel => `<option value="">Elige un servicio</option>` + bookable().map(s => `<option value="${s.id}"${s.id === sel ? ' selected' : ''}>${esc(s.nombre)} · ${svcLine(s)}</option>`).join('');
-      el.innerHTML = `<h4><i>1</i>¿Quiénes vienen?</h4>
+      el.innerHTML = `<h4>¿Quiénes vienen?</h4>
         <p class="hint">Las atendemos una después de la otra, empezando a la hora que elijas.</p>
         ${S.people.map((p, i) => `<div class="person">
           <div class="person-head"><b>Persona ${i + 1}</b>${S.people.length > 2 ? `<button type="button" class="x" data-rm="${i}" aria-label="Quitar persona ${i + 1}">✕</button>` : ''}</div>
@@ -172,6 +220,7 @@
         ${S.people.length < MAX_PEOPLE ? '<button type="button" class="alt" data-add-person="1">➕ Agregar otra persona</button>' : ''}
         <button type="button" class="alt ghost" data-group="off">← Reservar solo para mí</button>`;
     }
+    renderBar();
   }
 
   function renderPro() {
@@ -181,14 +230,13 @@
     el.hidden = false;
     const list = prosFor();
     if (S.pro && !list.some(p => p.id === S.pro)) S.pro = '';
-    el.innerHTML = `<h4><i>2</i>¿Quién te atiende?</h4>
+    el.innerHTML = `<h4>¿Quién te atiende?</h4>
       <select data-pro="1" aria-label="Profesional"><option value="">Cualquiera disponible</option>${list.map(p => `<option value="${p.id}"${p.id === S.pro ? ' selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select>`;
   }
 
   function renderDate() {
     const el = $('#st-date');
     if (!el) return;
-    const n = S.pros.length > 1 ? 3 : 2;
     let body;
     if (!ids().length) body = '<p class="muted">Primero elige un servicio.</p>';
     else if (S.loadingDays && !S.days.length) body = '<p class="muted">Buscando fechas disponibles…</p>';
@@ -217,18 +265,20 @@
       }
       body = `<div class="days" role="group" aria-label="Fechas">${chips}</div><div id="slots-box">${slots}</div>`;
     }
-    el.innerHTML = `<h4><i>${n}</i>Fecha y hora</h4>${ids().length ? `<p class="hint">Duración: <b>${dur(totalDur())}</b></p>` : ''}${body}`;
+    el.innerHTML = `<h4>Elige el día y la hora</h4>${ids().length ? `<p class="hint">Tu cita dura <b>${dur(totalDur())}</b>.</p>` : ''}${body}`;
+    renderBar();
   }
 
   function renderSummary() {
     const el = $('#summary');
     if (!el) return;
+    renderBar();
     if (!S.time || !ids().length) { el.innerHTML = ''; return; }
     const fin = QN.fromMin(QN.toMin(S.time) + totalDur());
     const what = S.group
       ? S.people.map((p, i) => `${esc(p.nombre.trim() || 'Persona ' + (i + 1))}: ${esc(svc(p.svc)?.nombre || '—')}`).join('<br>')
       : esc(S.sel.map(id => svc(id)?.nombre).join(' + '));
-    el.innerHTML = `<div class="summary"><span class="card-kicker">TU CITA</span><p>${what}</p>
+    el.innerHTML = `<div class="summary"><span class="card-kicker">RESUMEN DE TU CITA</span><p>${what}</p>
       <p><b>${esc(fechaLarga(S.date))}</b><br>${h12(S.time)} – ${h12(fin)}${S.pro ? ' · con ' + esc(S.pros.find(p => p.id === S.pro)?.nombre) : ''}</p>
       ${allPriced() ? `<p class="price">Total aproximado: <b>${money(totalPrice())}</b></p>` : ''}</div>`;
   }
@@ -297,7 +347,7 @@
       S.date = d.day; setMsg(''); refreshSlots();
     } else if (d.time) {
       S.time = d.time; setMsg(''); renderDate(); renderSummary();
-      $('#summary').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      setTimeout(() => goStep(3), 180);
     }
   }
 
@@ -312,11 +362,11 @@
     if (S.busy) return;
     const name = $('#f-name').value.trim(), phone = $('#f-phone').value.trim(), nota = $('#f-nota').value.trim();
     if ($('#f-hp').value || Date.now() - S.t0 < 3000) return; // anti-spam
-    if (!ids().length || (S.group && S.people.some(p => !p.svc))) return setMsg('Elige el servicio' + (S.group ? ' de cada persona.' : '.'));
-    if (!S.date || !S.time) return setMsg('Elige la fecha y la hora de tu cita.');
+    if (!step1Ok()) return goStep(1);
+    if (!step2Ok()) return goStep(2);
     if (name.length < 2) { $('#f-name').focus(); return setMsg('Escribe tu nombre.'); }
     if (phone.replace(/\D/g, '').length < 10) { $('#f-phone').focus(); return setMsg('Escribe tu número de celular (10 dígitos).'); }
-    S.busy = true; $('#book').disabled = true; $('#book').textContent = 'Reservando…'; setMsg('');
+    S.busy = true; $('#next').disabled = true; $('#next').textContent = 'Reservando…'; setMsg('');
     try {
       let done;
       if (S.group) {
@@ -333,10 +383,10 @@
       renderDone(done);
     } catch (e) {
       setMsg(e.message);
-      if (/ocup|disponible/i.test(e.message)) refreshSlots();
+      if (/ocup|disponible/i.test(e.message)) { goStep(2); refreshSlots(); }
     } finally {
       S.busy = false;
-      const btn = $('#book'); if (btn) { btn.disabled = false; btn.textContent = 'Confirmar reserva'; }
+      if ($('#next')) renderBar();
     }
   }
 
