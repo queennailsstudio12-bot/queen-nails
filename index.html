@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8dce5">
+  <meta name="description" content="Reserva tu cita de manicure, acrílicas, polygel y diseño de uñas en Queen Nails Studio · by Sofía, Alfonso López, Usme, Bogotá.">
+  <meta property="og:title" content="Queen Nails Studio · Reserva tu cita">
+  <meta property="og:description" content="Tus uñas merecen sentirse como una reina. Agenda en línea en segundos.">
+  <meta property="og:image" content="assets/logo.jpg">
+  <title>Agenda tu cita · Queen Nails Studio</title>
+  <link rel="icon" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/reserva.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="assets/qn.js"></script>
+  <script src="assets/reserva.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Queen Nails Studio, inicio"><img src="assets/logo.jpg" alt="" width="54" height="54"><span>QUEEN <strong>NAILS</strong><small>STUDIO · BY SOFÍA</small></span></a>
+    <nav><a class="header-link" id="mis-citas-link" href="#reserva" hidden>Mi cita</a><a class="header-link" href="#reserva">Agendar cita</a></nav>
+  </header>
+
+  <!-- Vista "Mi cita" (enlace personal ?t=…) -->
+  <section id="mi-cita" class="manage-wrap" hidden aria-live="polite"></section>
+
+  <main id="inicio">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="eyebrow-line"></span> BELLEZA EN CADA DETALLE</span>
+        <h1 id="hero-title">Un momento para ti.<br><em>Unas uñas para brillar.</em></h1>
+        <p>Manos que cuentan tu historia. Diseños hechos para tu estilo, con la atención cercana y dedicada que mereces.</p>
+        <div class="hero-actions"><a class="button primary" href="#reserva">Reserva tu cita</a><a class="text-link" href="#servicios">Ver servicios <span aria-hidden="true">↗</span></a></div>
+        <div class="hero-note"><span class="star">✦</span><span id="hero-dir">Alfonso López, Usme<br><strong>Bogotá D. C.</strong></span></div>
+      </div>
+      <div class="hero-art"><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div><img src="assets/logo.jpg" alt="Queen Nails Studio by Sofía"><span class="art-spark spark-one" aria-hidden="true">✧</span><span class="art-spark spark-two" aria-hidden="true">✦</span></div>
+    </section>
+
+    <div class="ribbon" aria-hidden="true"><span>MANICURE</span><b>✦</b><span>DISEÑO</span><b>✦</b><span>ACRÍLICAS</span><b>✦</b><span>POLYGEL</span><b>✦</b><span>TU MOMENTO</span></div>
+
+    <section class="services section-wrap" id="servicios" aria-labelledby="services-title">
+      <div class="section-heading"><div><span class="eyebrow">ELIGE TU EXPERIENCIA</span><h2 id="services-title">Servicios para <em>sentirte increíble</em></h2></div><p>Cada detalle pensado para que tus uñas reflejen quién eres.</p></div>
+      <div class="service-grid" id="service-grid"><p class="muted">Cargando servicios…</p></div>
+    </section>
+
+    <section class="booking-band" id="reserva" aria-labelledby="booking-title">
+      <div class="section-wrap booking-layout">
+        <div class="booking-intro">
+          <span class="eyebrow">TU MOMENTO EMPIEZA AQUÍ</span>
+          <h2 id="booking-title">Reserva tu <em>cita perfecta</em></h2>
+          <p>Elige tus servicios, encuentra un horario libre y déjanos tus datos. Recibirás un enlace para confirmar, cambiar o cancelar tu cita cuando quieras.</p>
+          <div class="booking-tip"><span>✧</span><div><p>Te esperamos en <strong id="tip-dir">Alfonso López, Usme, Bogotá D. C.</strong></p><ul class="hours" id="hours"></ul></div></div>
+        </div>
+        <div class="booking-card" id="booking-card">
+          <div class="card-head"><div><span class="card-kicker">QUEEN NAILS STUDIO</span><h3>Nueva reserva</h3></div><span class="card-icon" aria-hidden="true">✦</span></div>
+          <div id="aviso" class="notice" hidden></div>
+          <div id="mis-citas" hidden></div>
+          <div id="booking-app"><p class="muted">Cargando agenda…</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing section-wrap"><span>✦</span><h2>Tus uñas merecen sentirse <em>como una reina.</em></h2><p>Queen Nails Studio · by Sofía</p></section>
+  </main>
+
+  <footer><span>© <span id="year"></span> Queen Nails Studio · by Sofía</span><span><a id="foot-wa" href="#" target="_blank" rel="noopener">WhatsApp</a> · Hecho con cariño en Usme, Bogotá.</span></footer>
+  <a class="wa-float" id="wa-float" href="#" target="_blank" rel="noopener" aria-label="Escríbenos por WhatsApp" hidden>
+    <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M16 3a13 13 0 0 0-11.2 19.6L3 29l6.6-1.7A13 13 0 1 0 16 3Zm0 23.7c-2 0-4-.5-5.7-1.6l-.4-.2-3.9 1 1-3.8-.3-.4A10.7 10.7 0 1 1 16 26.7Zm5.9-8c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2l-1 1.2c-.2.2-.4.2-.7.1a8.8 8.8 0 0 1-4.4-3.8c-.3-.6.3-.5 1-1.7.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.7 5 2.1.9 2.9 1 4 .8.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5l-.6-.3Z"/></svg>
+  </a>
+</body>
+</html>

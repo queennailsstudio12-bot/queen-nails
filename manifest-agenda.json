@@ -1,0 +1,17 @@
+{
+  "name": "Queen Nails · Agenda",
+  "short_name": "Queen Agenda",
+  "description": "Panel de citas, caja y clientas de Queen Nails Studio",
+  "start_url": "./agenda.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fffaf9",
+  "theme_color": "#4e2535",
+  "lang": "es",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

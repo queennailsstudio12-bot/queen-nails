@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4e2535">
+  <meta name="robots" content="noindex">
+  <title>Agenda · Queen Nails Studio</title>
+  <link rel="manifest" href="manifest-agenda.json">
+  <link rel="icon" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Queen Agenda">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/panel.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="config.js"></script>
+  <script src="assets/qn.js"></script>
+  <script src="assets/panel-core.js" defer></script>
+  <script src="assets/panel-agenda.js" defer></script>
+  <script src="assets/panel-caja.js" defer></script>
+  <script src="assets/panel-clientes.js" defer></script>
+  <script src="assets/panel-reportes.js" defer></script>
+  <script src="assets/panel-ajustes.js" defer></script>
+  <script src="assets/panel-start.js" defer></script>
+</head>
+<body>
+  <div id="login" class="login" hidden></div>
+
+  <div id="shell" hidden>
+    <header class="top">
+      <img src="assets/logo.jpg" alt="" width="40" height="40">
+      <div class="top-title"><b>Queen Nails</b><small id="top-sub">Agenda</small></div>
+      <button type="button" class="icon-btn" id="btn-refresh" aria-label="Actualizar">⟳</button>
+    </header>
+    <nav class="tabs" aria-label="Secciones">
+      <button type="button" data-view="agenda" class="on"><span aria-hidden="true">📅</span>Agenda<i id="badge-pend" hidden></i></button>
+      <button type="button" data-view="caja"><span aria-hidden="true">💰</span>Caja</button>
+      <button type="button" data-view="clientes"><span aria-hidden="true">👩</span>Clientas</button>
+      <button type="button" data-view="reportes"><span aria-hidden="true">📊</span>Reportes</button>
+      <button type="button" data-view="mas"><span aria-hidden="true">⚙️</span>Más</button>
+    </nav>
+    <main id="view" tabindex="-1"></main>
+  </div>
+
+  <div id="modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <div class="modal-head"><h2 id="modal-title"></h2><button type="button" class="icon-btn" data-close aria-label="Cerrar">✕</button></div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="print-area"></div>
+</body>
+</html>
