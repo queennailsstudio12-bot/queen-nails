@@ -1053,7 +1053,9 @@ begin
   end loop;
 end $$;
 
--- Avisos en tiempo real de nuevas citas en el panel
+-- Avisos en tiempo real de citas en el panel (nuevas, confirmadas, canceladas, reagendadas).
+-- 'replica identity full' permite saber el estado anterior de la cita en cada cambio.
+alter table citas replica identity full;
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime')

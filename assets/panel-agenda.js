@@ -204,6 +204,7 @@ window.PN_Agenda = (() => {
       const btn = e.target.closest('[data-act]'); if (!btn) return;
       const a = btn.dataset.act;
       const setEstado = async (estado, extra = {}) => {
+        markLocal(c.id);
         await run(btn, () => QN.q(sb.from('citas').update({ estado, ...extra }).eq('id', c.id)));
         c.estado = estado;
       };
@@ -333,6 +334,7 @@ window.PN_Agenda = (() => {
       e.preventDefault();
       const fd = new FormData(f), hora = fd.get('otra') || fd.get('hora');
       if (!hora) { $('#mv-err', b).textContent = 'Elige una hora.'; return; }
+      markLocal(c.id);
       try {
         await run(f.querySelector('button'), () => QN.rpc('mover_cita', { p_id: c.id, p_fecha: fd.get('fecha'), p_hora: hora, p_prof: fd.get('pro') || null, p_dur: num(fd.get('dur')) || null }));
       } catch (ex) { $('#mv-err', b).textContent = ex.message; return; }
@@ -343,38 +345,73 @@ window.PN_Agenda = (() => {
     });
   }
 
-  // ---------- Avisos en tiempo real de reservas nuevas ----------
-  function beep() {
+  // ---------- Avisos en tiempo real (con sonido) ----------
+  // Cambios hechos desde este panel no generan aviso.
+  const recent = new Map();
+  function markLocal(id) { recent.set(id, Date.now()); }
+  const isLocal = id => Date.now() - (recent.get(id) || 0) < 20000;
+
+  let audioCtx = null;
+  // Los navegadores solo permiten sonido después de que la usuaria toca la página: lo preparamos en el primer toque.
+  document.addEventListener('pointerdown', () => {
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch { /* */ }
+  }, { once: false, passive: true });
+
+  const TONOS = {
+    nueva: [[659, 0], [784, 0.16], [1046, 0.32], [1318, 0.5]],   // campanita alegre ascendente
+    confirmada: [[880, 0], [1175, 0.18]],                           // dos notas de "listo"
+    cancelada: [[660, 0], [440, 0.22]],                             // dos notas descendentes
+    cambio: [[784, 0], [784, 0.2], [988, 0.4]]                      // aviso neutro
+  };
+  function sonar(tipo = 'nueva') {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0, 0.18].forEach((t, i) => {
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.frequency.value = i ? 1046 : 784; o.connect(g); g.connect(ctx.destination);
-        g.gain.setValueAtTime(0.15, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.25);
-        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.26);
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const t0 = audioCtx.currentTime + 0.02;
+      const play = (offset) => (TONOS[tipo] || TONOS.nueva).forEach(([f, t]) => {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.0001, t0 + offset + t);
+        g.gain.exponentialRampToValueAtTime(0.35, t0 + offset + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + t + 0.45);
+        o.start(t0 + offset + t); o.stop(t0 + offset + t + 0.5);
       });
+      play(0); if (tipo === 'nueva') play(1.1); // la reserva nueva suena dos veces
     } catch { /* sin sonido */ }
+    try { navigator.vibrate?.(tipo === 'nueva' ? [200, 100, 200, 100, 300] : [200, 100, 200]); } catch { /* */ }
   }
+  function avisar(tipo, titulo, texto, id) {
+    toast(titulo + ': ' + texto);
+    sonar(tipo);
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const opts = { body: texto, icon: 'assets/icon-192.png', badge: 'assets/icon-192.png', tag: tipo + '-' + id, renotify: true, requireInteraction: tipo === 'nueva' };
+      navigator.serviceWorker?.getRegistration().then(r => r ? r.showNotification('Queen Nails · ' + titulo, opts) : new Notification('Queen Nails · ' + titulo, opts)).catch(() => {});
+    }
+    updatePendBadge();
+    if (PN.current() === 'agenda' && $('#modal').hidden) PN.go('agenda');
+  }
+  const cuando = c => fechaCorta(c.fecha) + ' ' + h12(hhmm(c.hora));
+
   function realtime() {
     try {
-      sb.channel('citas-nuevas')
+      sb.channel('citas-cambios')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'citas' }, p => {
           const c = p.new;
           if (c.origen !== 'online') return;
-          const text = `Nueva reserva: ${c.cliente} · ${fechaCorta(c.fecha)} ${h12(hhmm(c.hora))}`;
-          toast('🎉 ' + text);
-          beep();
-          if ('Notification' in window && Notification.permission === 'granted') {
-            navigator.serviceWorker?.getRegistration().then(r => r ? r.showNotification('Queen Nails · Nueva reserva', { body: text, icon: 'assets/icon-192.png', tag: c.id }) : new Notification('Queen Nails · Nueva reserva', { body: text, icon: 'assets/icon-192.png' }));
-          }
-          updatePendBadge();
-          if (PN.current() === 'agenda') PN.go('agenda');
+          avisar('nueva', '🎉 Nueva reserva', `${c.cliente} · ${cuando(c)}`, c.id);
         })
-        .subscribe();
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'citas' }, p => {
+          const n = p.new, o = p.old || {};
+          if (isLocal(n.id)) return;
+          if (n.estado === 'confirmada' && o.estado === 'pendiente') avisar('confirmada', '✅ Cita confirmada', `${n.cliente} confirmó su cita · ${cuando(n)}`, n.id);
+          else if (n.estado === 'cancelada' && o.estado !== 'cancelada' && n.cancelada_por === 'clienta') avisar('cancelada', '❌ Cita cancelada', `${n.cliente} canceló su cita · ${cuando(n)}`, n.id);
+          else if (o.fecha && (o.fecha !== n.fecha || String(o.hora) !== String(n.hora)) && ['pendiente', 'confirmada'].includes(n.estado)) avisar('cambio', '🔁 Cita reagendada', `${n.cliente} cambió su cita a ${cuando(n)}`, n.id);
+        })
+        .subscribe(st => { PN.realtimeStatus = st; });
     } catch (e) { console.warn('Tiempo real no disponible', e); }
   }
 
-  const mod = { title: 'Agenda', show, openCita, nuevaCita, citaById, realtime, updatePendBadge, msgConfirmada };
+  const mod = { title: 'Agenda', show, openCita, nuevaCita, citaById, realtime, updatePendBadge, msgConfirmada, sonar };
   PN.register('agenda', mod);
   return mod;
 })();

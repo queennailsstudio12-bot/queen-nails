@@ -411,11 +411,14 @@ window.PN_Ajustes = (() => {
   SUBS.notif = el => {
     const ok = 'Notification' in window;
     const st = ok ? Notification.permission : 'no';
-    el.innerHTML = `<section class="card"><p>Cuando una clienta reserva en línea, el panel muestra un aviso con sonido${ok ? ' y una notificación del sistema' : ''} mientras la agenda esté abierta (también instalada como app).</p>
+    el.innerHTML = `<section class="card"><p>Cuando una clienta reserva, confirma, cancela o cambia su cita, el panel muestra un aviso con sonido${ok ? ' y una notificación del sistema' : ''} mientras la agenda esté abierta (también instalada como app).</p>
       <p><b>Estado:</b> ${st === 'granted' ? '✅ Activadas' : st === 'denied' ? '⛔ Bloqueadas en este navegador (actívalas en los ajustes del sitio)' : st === 'no' ? 'Este navegador no las permite' : 'Sin activar'}</p>
       ${ok && st === 'default' ? '<button type="button" class="btn primary full" data-on>Activar notificaciones</button>' : ''}
+      <div class="action-grid"><button type="button" class="btn ghost" data-test="nueva">🔊 Sonido: reserva nueva</button><button type="button" class="btn ghost" data-test="confirmada">🔊 Sonido: confirmada</button><button type="button" class="btn ghost" data-test="cancelada">🔊 Sonido: cancelada</button><button type="button" class="btn ghost" data-test="cambio">🔊 Sonido: reagendada</button></div>
+      <p class="muted small">Suena cuando una clienta <b>reserva</b>, <b>confirma</b>, <b>cancela</b> o <b>cambia</b> su cita. Sube el volumen del celular o computador.</p>
       <p class="muted small">Consejo: deja la agenda abierta en el computador o el celular del estudio. Las reservas también se ven en la pestaña "Por confirmar".</p></section>`;
     el.querySelector('[data-on]')?.addEventListener('click', async () => { await Notification.requestPermission(); PN.go('mas', { sub: 'notif' }); });
+    el.addEventListener('click', e => { const b = e.target.closest('[data-test]'); if (b) window.PN_Agenda.sonar(b.dataset.test); });
   };
 
   SUBS.app = el => {
