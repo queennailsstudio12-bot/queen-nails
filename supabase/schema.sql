@@ -1016,6 +1016,12 @@ begin
   end loop;
 end $$;
 
+-- Permisos de tabla para el panel. Los proyectos nuevos de Supabase no siempre los dan solos;
+-- RLS (dueno_todo) sigue limitando todo a la dueña.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+
 -- El hash del PIN no se lee ni se cambia directamente desde el panel (solo con las funciones pin_*).
 revoke all on config_negocio from authenticated;
 grant select (id, nombre, eslogan, direccion, whatsapp, paso_min, dias_reserva, min_anticipacion_min, horas_cancelar,
