@@ -67,16 +67,17 @@
     if (!started) {
       started = true;
       $('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if (b) PN.go(b.dataset.view); });
+      $('#btn-new').addEventListener('click', () => window.PN_Agenda.nuevaCita({ fecha: QN.hoy() }));
       $('#btn-refresh').addEventListener('click', async () => { await PN.loadBase().catch(() => {}); PN.refresh(); toast('Actualizado'); });
       window.PN_Agenda.realtime();
       // Al volver a la app después de un rato, refrescar la agenda
       let hiddenAt = 0;
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) hiddenAt = Date.now();
-        else if (Date.now() - hiddenAt > 60000 && PN.current() === 'agenda' && $('#modal').hidden) PN.go('agenda');
+        else if (Date.now() - hiddenAt > 60000 && ['agenda', 'inicio'].includes(PN.current()) && $('#modal').hidden) PN.refresh();
       });
     }
-    PN.go('agenda');
+    PN.go('inicio');
   }
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

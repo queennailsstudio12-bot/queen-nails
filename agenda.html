@@ -21,6 +21,7 @@
   <script src="assets/qn.js"></script>
   <script src="assets/panel-core.js" defer></script>
   <script src="assets/panel-agenda.js" defer></script>
+  <script src="assets/panel-inicio.js" defer></script>
   <script src="assets/panel-caja.js" defer></script>
   <script src="assets/panel-clientes.js" defer></script>
   <script src="assets/panel-reportes.js" defer></script>
@@ -34,10 +35,12 @@
     <header class="top">
       <img src="assets/logo.jpg" alt="" width="40" height="40">
       <div class="top-title"><b>Queen Nails</b><small id="top-sub">Agenda</small></div>
+      <button type="button" class="top-new" id="btn-new" aria-label="Nueva cita"><span aria-hidden="true">＋</span><em>Nueva cita</em></button>
       <button type="button" class="icon-btn" id="btn-refresh" aria-label="Actualizar">⟳</button>
     </header>
     <nav class="tabs" aria-label="Secciones">
-      <button type="button" data-view="agenda" class="on"><span aria-hidden="true">📅</span>Agenda<i id="badge-pend" hidden></i></button>
+      <button type="button" data-view="inicio" class="on"><span aria-hidden="true">🏠</span>Inicio</button>
+      <button type="button" data-view="agenda"><span aria-hidden="true">📅</span>Agenda<i id="badge-pend" hidden></i></button>
       <button type="button" data-view="caja"><span aria-hidden="true">💰</span>Caja</button>
       <button type="button" data-view="clientes"><span aria-hidden="true">👩</span>Clientas</button>
       <button type="button" data-view="reportes"><span aria-hidden="true">📊</span>Reportes</button>

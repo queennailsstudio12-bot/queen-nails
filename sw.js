@@ -1,7 +1,7 @@
 // Service worker del panel: permite instalarlo como app y abrirlo sin conexión (los datos requieren internet).
-const CACHE = 'qn-agenda-v2';
+const CACHE = 'qn-agenda-v3';
 const SHELL = ['agenda.html', 'config.js', 'manifest-agenda.json', 'assets/panel.css', 'assets/qn.js', 'assets/panel-core.js',
-  'assets/panel-agenda.js', 'assets/panel-caja.js', 'assets/panel-clientes.js', 'assets/panel-reportes.js', 'assets/panel-ajustes.js',
+  'assets/panel-agenda.js', 'assets/panel-inicio.js', 'assets/panel-caja.js', 'assets/panel-clientes.js', 'assets/panel-reportes.js', 'assets/panel-ajustes.js',
   'assets/panel-start.js', 'assets/logo.jpg', 'assets/icon-192.png'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

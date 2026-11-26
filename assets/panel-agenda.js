@@ -76,44 +76,77 @@ window.PN_Agenda = (() => {
     </article>`;
   }
 
-  async function renderDia(body) {
-    const f = A.date;
+  // ---------- Calendario por horas (estilo agenda profesional) ----------
+  const PX = 72; // alto de una hora en píxeles
+  const ahoraMin = () => { const n = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' })); return n.getHours() * 60 + n.getMinutes(); };
+  const wide = () => matchMedia('(min-width: 900px)').matches;
+
+  async function renderGrid(body, dates) {
+    const a = dates[0], z = dates.at(-1);
     const [citas, bloqueos] = await Promise.all([
-      citasRango(f, f),
-      QN.q(sb.from('bloqueos').select('*').lte('desde', f).gte('hasta', f))
+      citasRango(a, z),
+      QN.q(sb.from('bloqueos').select('*').lte('desde', z).gte('hasta', a))
     ]);
     const act = citas.filter(c => ['pendiente', 'confirmada', 'atendida'].includes(c.estado));
     const otras = citas.filter(c => !act.includes(c));
-    const h = D.horarios.find(x => x.dia === new Date(f + 'T12:00:00Z').getUTCDay());
-    let html = '';
-    for (const b of bloqueos) html += `<div class="block-note" data-bloq="${b.id}">🌙 <b>${esc(b.motivo || 'Descanso')}</b> · ${b.hora_ini ? h12(hhmm(b.hora_ini)) + ' – ' + h12(hhmm(b.hora_fin)) : 'todo el día'}${b.profesional_id ? ' · ' + esc(PN.pro(b.profesional_id)?.nombre || '') : ''}</div>`;
-    if (!h || !h.activo) html += '<p class="muted">El estudio no abre este día según el horario.</p>';
-
-    // Línea del día: citas y huecos libres (solo si hay una profesional)
-    const items = act.map(c => ({ t: toMin(hhmm(c.hora)), html: citaCard(c) }));
-    if (h && h.activo && !PN.multiPro() && !bloqueos.some(b => !b.hora_ini)) {
-      const busy = act.map(c => [toMin(hhmm(c.hora)), toMin(hhmm(c.hora)) + c.dur_min])
-        .concat(bloqueos.filter(b => b.hora_ini).map(b => [toMin(hhmm(b.hora_ini)), toMin(hhmm(b.hora_fin))]))
-        .concat(h.descanso_ini ? [[toMin(hhmm(h.descanso_ini)), toMin(hhmm(h.descanso_fin))]] : [])
-        .sort((a, b) => a[0] - b[0]);
-      let t = toMin(hhmm(h.abre));
-      const end = toMin(hhmm(h.cierra));
-      const nowMin = f === hoy() ? (() => { const n = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' })); return n.getHours() * 60 + n.getMinutes(); })() : -1;
-      for (const [a, b] of [...busy, [end, end]]) {
-        const from = Math.max(t, nowMin > t ? Math.ceil(nowMin / 30) * 30 : t);
-        if (a - from >= 30) items.push({ t: from, html: `<button type="button" class="free" data-free="${fromMin(from)}">Libre ${h12(fromMin(from))} – ${h12(fromMin(a))} <span>＋ Agendar</span></button>` });
-        t = Math.max(t, b);
+    const hs = D.horarios.filter(h => h.activo);
+    const h0 = Math.floor(Math.min(9 * 60, ...hs.map(h => toMin(hhmm(h.abre))), ...act.map(c => toMin(hhmm(c.hora)))) / 60);
+    const h1 = Math.ceil(Math.max(18 * 60, ...hs.map(h => toMin(hhmm(h.cierra))), ...act.map(c => toMin(hhmm(c.hora)) + c.dur_min)) / 60);
+    const y = m => (m - h0 * 60) / 60 * PX;
+    const H = (h1 - h0) * PX;
+    // Columnas: un día con varias profesionales → una por profesional; si no, una por día
+    const cols = dates.length === 1 && PN.multiPro()
+      ? PN.activePros().map(p => ({ fecha: a, pro: p.id, label: p.nombre }))
+      : dates.map(f => ({ fecha: f, pro: null, label: f }));
+    const head = cols.length > 1 ? `<div class="tg-head"><div class="tg-gut"></div>${cols.map(c => c.pro
+      ? `<div class="tg-hcell"><span class="pro-dot"></span>${esc(c.label)}</div>`
+      : `<button type="button" class="tg-hcell${c.fecha === hoy() ? ' today' : ''}" data-goday="${c.fecha}"><small>${QN.fmt(c.fecha, { weekday: 'short' }).replace('.', '')}</small><b>${+c.fecha.slice(8)}</b></button>`).join('')}</div>` : '';
+    const lines = Array.from({ length: h1 - h0 }, (_, i) => `<div class="tg-line" style="top:${i * PX}px"></div><div class="tg-line half" style="top:${i * PX + PX / 2}px"></div>`).join('');
+    const labels = Array.from({ length: h1 - h0 }, (_, i) => `<span style="top:${i * PX}px">${h12(fromMin((h0 + i) * 60)).replace(':00', '')}</span>`).join('');
+    const colHtml = cols.map(col => {
+      const dow = new Date(col.fecha + 'T12:00:00Z').getUTCDay(), hr = D.horarios.find(x => x.dia === dow);
+      let bg = '';
+      const shade = (m1, m2, txt = '') => { if (m2 > m1) bg += `<div class="tg-closed" style="top:${y(m1)}px;height:${y(m2) - y(m1)}px">${txt}</div>`; };
+      if (!hr || !hr.activo) shade(h0 * 60, h1 * 60, '<span>Cerrado</span>');
+      else {
+        shade(h0 * 60, toMin(hhmm(hr.abre))); shade(toMin(hhmm(hr.cierra)), h1 * 60);
+        if (hr.descanso_ini) shade(toMin(hhmm(hr.descanso_ini)), toMin(hhmm(hr.descanso_fin)), '<span>Pausa</span>');
       }
-    }
-    items.sort((a, b) => a.t - b.t);
-    const total = act.reduce((a, c) => a + Number(c.precio_estimado || 0), 0);
-    html += `<p class="day-sum">${act.length ? `<b>${act.length}</b> cita${act.length > 1 ? 's' : ''}${total ? ' · ' + money(total) + ' estimado' : ''}` : 'Sin citas este día.'}</p>`;
-    html += items.map(i => i.html).join('');
-    if (otras.length) html += `<details class="others"><summary>Canceladas / no asistió (${otras.length})</summary>${otras.map(c => citaCard(c)).join('')}</details>`;
-    if (f === hoy()) html += await recordatoriosHtml();
-    html += `<div class="row-btns mt"><button type="button" class="btn ghost" data-bloqueo>🌙 Marcar descanso este día</button></div>`;
+      for (const bq of bloqueos.filter(x => x.desde <= col.fecha && x.hasta >= col.fecha && (!x.profesional_id || !col.pro || x.profesional_id === col.pro))) {
+        const m1 = bq.hora_ini ? toMin(hhmm(bq.hora_ini)) : h0 * 60, m2 = bq.hora_fin ? toMin(hhmm(bq.hora_fin)) : h1 * 60;
+        bg += `<button type="button" class="tg-block" data-bloq="${bq.id}" style="top:${y(m1)}px;height:${y(m2) - y(m1)}px"><span>🌙 ${esc(bq.motivo || 'Descanso')}</span></button>`;
+      }
+      const evs = act.filter(c => c.fecha === col.fecha && (!col.pro || c.profesional_id === col.pro)).map(c => {
+        const m = toMin(hhmm(c.hora)), hgt = Math.max(c.dur_min / 60 * PX - 3, 26);
+        return `<button type="button" class="ev st-${c.estado}${hgt < 46 ? ' tiny' : ''}" data-cita="${c.id}" style="top:${y(m) + 1}px;height:${hgt}px">
+          <b>${esc(c.cliente)}</b><span>${h12(hhmm(c.hora))} – ${h12(fromMin(m + c.dur_min))}</span>${hgt >= 62 ? `<small>${esc(c.servicios || '')}</small>` : ''}
+          <i class="ev-icons">${c.estado === 'pendiente' ? '⏳' : c.estado === 'atendida' ? '💰' : '✓'}${c.origen === 'online' ? ' 🌐' : ''}</i></button>`;
+      }).join('');
+      const nm = ahoraMin();
+      const now = col.fecha === hoy() && nm >= h0 * 60 && nm <= h1 * 60 ? `<div class="tg-now" style="top:${y(nm)}px"></div>` : '';
+      return `<div class="tg-col" data-col-fecha="${col.fecha}"${col.pro ? ` data-col-pro="${col.pro}"` : ''}>${bg}${evs}${now}</div>`;
+    }).join('');
+    const total = act.reduce((s2, c) => s2 + Number(c.precio_estimado || 0), 0);
+    const pend = act.filter(c => c.estado === 'pendiente').length;
+    let html = `<div class="ag-stats"><span><b>${act.length}</b> cita${act.length === 1 ? '' : 's'}</span>${pend ? `<span class="warn-pill">⏳ ${pend} por confirmar</span>` : ''}${total ? `<span>${money(total)} estimado</span>` : ''}
+        <span class="legend"><i class="lg st-pendiente"></i>Por confirmar <i class="lg st-confirmada"></i>Confirmada <i class="lg st-atendida"></i>Atendida</span></div>
+      <div class="tg${cols.length > 1 ? ' multi' : ''}" data-h0="${h0}" style="--cols:${cols.length}">${head}
+        <div class="tg-body"><div class="tg-gut" style="height:${H}px">${labels}</div><div class="tg-cols" style="height:${H}px">${lines}${colHtml}</div></div></div>
+      <p class="muted small center">Toca un espacio vacío para agendar a esa hora.</p>`;
+    if (otras.length) html += `<details class="others"><summary>Canceladas / no asistió (${otras.length})</summary>${otras.map(c => citaCard(c, { fecha: dates.length > 1 })).join('')}</details>`;
+    if (dates.length === 1 && a === hoy()) html += await recordatoriosHtml();
+    if (dates.length === 1) html += `<div class="row-btns mt"><button type="button" class="btn ghost" data-bloqueo>🌙 Bloquear horario o día</button></div>`;
     body.innerHTML = html;
+    // Mostrar la hora actual o la primera cita
+    const first = dates.includes(hoy()) ? ahoraMin() - 60 : act.length ? Math.min(...act.map(c => toMin(hhmm(c.hora)))) - 30 : null;
+    if (first != null) {
+      const tb = body.querySelector('.tg-body');
+      const top = tb.getBoundingClientRect().top + window.scrollY + y(Math.max(first, h0 * 60)) - 150;
+      window.scrollTo({ top: Math.max(0, top) });
+    }
   }
+
+  const renderDia = body => renderGrid(body, [A.date]);
 
   async function recordatoriosHtml() {
     const m = addDays(hoy(), 1);
@@ -128,6 +161,7 @@ window.PN_Agenda = (() => {
 
   async function renderSemana(body) {
     const a = lunes(A.date), b = addDays(a, 6);
+    if (wide()) return renderGrid(body, Array.from({ length: 7 }, (_, i) => addDays(a, i)));
     const citas = (await citasRango(a, b)).filter(c => c.estado !== 'cancelada');
     let html = '';
     for (let i = 0; i < 7; i++) {
@@ -154,6 +188,12 @@ window.PN_Agenda = (() => {
     if (card) return openCita(card.dataset.cita);
     const free = e.target.closest('[data-free]');
     if (free) return nuevaCita({ fecha: A.date, hora: free.dataset.free });
+    const col = e.target.closest('.tg-col');
+    if (col && !e.target.closest('.ev,.tg-block')) {
+      const h0 = +col.closest('.tg').dataset.h0;
+      const m = h0 * 60 + Math.floor((e.clientY - col.getBoundingClientRect().top) / PX * 2) * 30;
+      return nuevaCita({ fecha: col.dataset.colFecha, hora: fromMin(m), pro: col.dataset.colPro });
+    }
     const gd = e.target.closest('[data-goday]');
     if (gd) { A.date = gd.dataset.goday; A.mode = 'dia'; return PN.go('agenda'); }
     if (e.target.closest('[data-bloqueo]')) return window.PN_Ajustes.editBloqueo({ desde: A.date, hasta: A.date }, () => PN.go('agenda'));
@@ -229,7 +269,7 @@ window.PN_Agenda = (() => {
       } catch { /* el aviso ya se mostró */ }
     });
   }
-  const afterChange = () => { updatePendBadge(); if (PN.current() === 'agenda') PN.go('agenda'); };
+  const afterChange = () => { updatePendBadge(); if (['agenda', 'inicio'].includes(PN.current())) PN.refresh(); };
 
   // ---------- Horas disponibles para formularios ----------
   async function slotOptions(fecha, minutos, prof, ignorarToken, selected) {
@@ -388,7 +428,7 @@ window.PN_Agenda = (() => {
       navigator.serviceWorker?.getRegistration().then(r => r ? r.showNotification('Queen Nails · ' + titulo, opts) : new Notification('Queen Nails · ' + titulo, opts)).catch(() => {});
     }
     updatePendBadge();
-    if (PN.current() === 'agenda' && $('#modal').hidden) PN.go('agenda');
+    if (['agenda', 'inicio'].includes(PN.current()) && $('#modal').hidden) PN.refresh();
   }
   const cuando = c => fechaCorta(c.fecha) + ' ' + h12(hhmm(c.hora));
 
@@ -411,7 +451,7 @@ window.PN_Agenda = (() => {
     } catch (e) { console.warn('Tiempo real no disponible', e); }
   }
 
-  const mod = { title: 'Agenda', show, openCita, nuevaCita, citaById, realtime, updatePendBadge, msgConfirmada, sonar };
+  const mod = { title: 'Agenda', show, openCita, nuevaCita, citaById, citasRango, citaCard, realtime, updatePendBadge, msgConfirmada, msgRecordatorio, sonar, setDate: (f, m) => { A.date = f; if (m) A.mode = m; } };
   PN.register('agenda', mod);
   return mod;
 })();

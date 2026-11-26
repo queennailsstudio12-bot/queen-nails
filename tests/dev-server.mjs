@@ -66,7 +66,8 @@ function filters(params, values) {
   const where = [];
   for (const [k, v] of params) {
     if (['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k)) continue;
-    const m = /^(eq|neq|gt|gte|lt|lte|in|is)\.(.*)$/s.exec(v);
+    if (v === 'not.is.null') { where.push(`${ident(k)} is not null`); continue; }
+    const m =/^(eq|neq|gt|gte|lt|lte|in|is)\.(.*)$/s.exec(v);
     if (!m) throw Object.assign(new Error('filtro no soportado: ' + v), { code: 'PGRST100' });
     const col = ident(k), [, op, val] = m;
     if (op === 'in') {

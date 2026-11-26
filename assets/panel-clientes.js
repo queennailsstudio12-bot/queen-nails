@@ -8,6 +8,7 @@ window.PN_Clientes = (() => {
   const mesActual = () => hoy().slice(5, 7);
 
   async function show(v, arg) {
+    if (arg?.filtro) S.filtro = arg.filtro;
     S.list = await QN.rpc('clientes_resumen');
     v.innerHTML = `<div class="toolbar"><input type="search" id="cl-q" placeholder="Buscar por nombre o celular" value="${esc(S.q)}" aria-label="Buscar clienta">
       <div class="seg scroll">${[['todas', 'Todas'], ['cumple', '🎂 Cumpleaños del mes'], ['frecuentes', '⭐ Frecuentes'], ['inactivas', '💤 Sin venir +60 días'], ['abono', '💵 Con abono']].map(([k, l]) => `<button type="button" data-f="${k}" class="${S.filtro === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
